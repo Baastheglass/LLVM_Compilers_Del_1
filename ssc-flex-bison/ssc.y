@@ -27,6 +27,9 @@
 
 %token tok_printd
 %token tok_prints
+%token tok_if
+%token tok_else
+%token tok_for
 %token <identifier> tok_identifier
 %token <double_literal> tok_double_literal
 %token <string_literal> tok_string_literal
