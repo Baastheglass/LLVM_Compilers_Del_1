@@ -23,6 +23,7 @@
 	char *identifier;
 	double double_literal;
 	char *string_literal;
+	int int_literal;
 }
 
 %token tok_printd
@@ -33,6 +34,7 @@
 %token <identifier> tok_identifier
 %token <double_literal> tok_double_literal
 %token <string_literal> tok_string_literal
+%token <int_literal> tok_int_literal
 
 %type <double_literal> term expression
 
@@ -56,12 +58,19 @@ prints:	tok_prints '(' tok_string_literal ')' ';'   {debugBison(5); print("%s\n"
 printd:	tok_printd '(' term ')' ';'		{debugBison(6); print("%lf\n", $3); }
 	;
 
+if: tok_if '(' expression ')' '{' statement '}'		{debugBison(7); print("%s\n", "if($3) {$6}");}
+
+else: tok_else '{' statement '}'	{debugBison(8); print("%s\n", "else{$3}");}
+
+for: tok_for tok_identifier '=' tok_int_literal '{' statement '}' 	{debugBison(9); print("%s\n", "for(int $2 = 0; $2 < $4; $2++){$6}");}
+
 term:	tok_identifier				{debugBison(7); $$ = getValueFromSymbolTable($1); } 
 	| tok_double_literal			{debugBison(8); $$ = $1; }
 	;
 
 assignment:  tok_identifier '=' expression ';'	{debugBison(9); setValueInSymbolTable($1, $3); } 
 	;
+
 expression: term				{debugBison(10); $$= $1;}
 	   | expression '+' expression		{debugBison(11); $$ = performBinaryOperation ($1, $3, '+');}
 	   | expression '-' expression		{debugBison(12); $$ = performBinaryOperation ($1, $3, '-');}
@@ -70,7 +79,7 @@ expression: term				{debugBison(10); $$= $1;}
 	   | '(' expression ')'			{debugBison(15); $$= $2;}
 	   ;	   
 	      
-	   
+statement: expression statement | ; //added right recursion for expressions so we can have multiple expressions	   
 
 %%
 
