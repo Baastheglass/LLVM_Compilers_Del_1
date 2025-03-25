@@ -31,6 +31,7 @@
 %token tok_if
 %token tok_else
 %token tok_for
+%token tok_function
 %token <identifier> tok_identifier
 %token <double_literal> tok_double_literal
 %token <string_literal> tok_string_literal
@@ -64,19 +65,21 @@ else: tok_else '{' statement '}'	{debugBison(8); print("%s\n", "else{$3}");}
 
 for: tok_for tok_identifier '=' tok_int_literal '{' statement '}' 	{debugBison(9); print("%s\n", "for(int $2 = 0; $2 < $4; $2++){$6}");}
 
-term:	tok_identifier				{debugBison(7); $$ = getValueFromSymbolTable($1); } 
-	| tok_double_literal			{debugBison(8); $$ = $1; }
+function: tok_function  '{' statement '}'	{debugBison(10); print("%s\n", "void function() {$3}");} //we dont like parameters
+
+term:	tok_identifier				{debugBison(11); $$ = getValueFromSymbolTable($1); } 
+	| tok_double_literal			{debugBison(12); $$ = $1; }
 	;
 
-assignment:  tok_identifier '=' expression ';'	{debugBison(9); setValueInSymbolTable($1, $3); } 
+assignment:  tok_identifier '=' expression ';'	{debugBison(13); setValueInSymbolTable($1, $3); } 
 	;
 
-expression: term				{debugBison(10); $$= $1;}
-	   | expression '+' expression		{debugBison(11); $$ = performBinaryOperation ($1, $3, '+');}
-	   | expression '-' expression		{debugBison(12); $$ = performBinaryOperation ($1, $3, '-');}
-	   | expression '/' expression		{debugBison(13); $$ = performBinaryOperation ($1, $3, '/');}
-	   | expression '*' expression		{debugBison(14); $$ = performBinaryOperation ($1, $3, '*');}
-	   | '(' expression ')'			{debugBison(15); $$= $2;}
+expression: term				{debugBison(14); $$= $1;}
+	   | expression '+' expression		{debugBison(15); $$ = performBinaryOperation ($1, $3, '+');}
+	   | expression '-' expression		{debugBison(16); $$ = performBinaryOperation ($1, $3, '-');}
+	   | expression '/' expression		{debugBison(17); $$ = performBinaryOperation ($1, $3, '/');}
+	   | expression '*' expression		{debugBison(18); $$ = performBinaryOperation ($1, $3, '*');}
+	   | '(' expression ')'			{debugBison(19); $$= $2;}
 	   ;	   
 	      
 statement: expression statement | ; //added right recursion for expressions so we can have multiple expressions	   
