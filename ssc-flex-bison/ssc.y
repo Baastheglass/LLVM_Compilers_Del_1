@@ -47,42 +47,52 @@
 
 %%
 
-root:	/* empty */				{debugBison(1);}  	
-	| prints  root				{debugBison(2);}
-	| printd  root				{debugBison(3);}
-	| assignment  root			{debugBison(4);}
-	; 
+root:   /* empty */                     {debugBison(1);}  
+      | prints root                     {debugBison(2);}
+      | printd root                      {debugBison(3);}
+      | assignment root                   {debugBison(4);}
+      | if root                           {debugBison(5);}
+	  | else root                           {debugBison(6);}
+      | for root                          {debugBison(7);}
+      | function root                      {debugBison(8);}
+      ;
 
-prints:	tok_prints '(' tok_string_literal ')' ';'   {debugBison(5); print("%s\n", $3); } 
+
+prints:	tok_prints '(' tok_string_literal ')' ';'   {debugBison(9); print("%s\n", $3); } 
 	;
 
-printd:	tok_printd '(' term ')' ';'		{debugBison(6); print("%lf\n", $3); }
+printd:	tok_printd '(' term ')' ';'		{debugBison(10); print("%lf\n", $3); }
 	;
 
-if: tok_if '(' expression ')' '{' statement '}'		{debugBison(7); print("%s\n", "if($3) {$6}");}
+if: tok_if '(' expression ')' '{' statement '}'		{debugBison(11); print("%s\n", "if($3) {$6}");}
 
-else: tok_else '{' statement '}'	{debugBison(8); print("%s\n", "else{$3}");}
+else: tok_else '{' statement '}'	{debugBison(12); print("%s\n", "else{$3}");}
 
-for: tok_for tok_identifier '=' tok_int_literal '{' statement '}' 	{debugBison(9); print("%s\n", "for(int $2 = 0; $2 < $4; $2++){$6}");}
+for: tok_for tok_identifier '=' tok_int_literal '{' statement '}' 	{debugBison(13); print("%s\n", "for(int $2 = 0; $2 < $4; $2++){$6}");}
 
-function: tok_function  '{' statement '}'	{debugBison(10); print("%s\n", "void function() {$3}");} //we dont like parameters
+function: tok_function  '{' statement '}'	{debugBison(14); print("%s\n", "void function() {$3}");} //we dont like parameters
 
-term:	tok_identifier				{debugBison(11); $$ = getValueFromSymbolTable($1); } 
-	| tok_double_literal			{debugBison(12); $$ = $1; }
+term:	tok_identifier				{debugBison(15); $$ = getValueFromSymbolTable($1); } 
+	| tok_double_literal			{debugBison(16); $$ = $1; }
 	;
 
-assignment:  tok_identifier '=' expression ';'	{debugBison(13); setValueInSymbolTable($1, $3); } 
+assignment:  tok_identifier '=' expression ';'	{debugBison(17); setValueInSymbolTable($1, $3); } 
 	;
 
-expression: term				{debugBison(14); $$= $1;}
-	   | expression '+' expression		{debugBison(15); $$ = performBinaryOperation ($1, $3, '+');}
-	   | expression '-' expression		{debugBison(16); $$ = performBinaryOperation ($1, $3, '-');}
-	   | expression '/' expression		{debugBison(17); $$ = performBinaryOperation ($1, $3, '/');}
-	   | expression '*' expression		{debugBison(18); $$ = performBinaryOperation ($1, $3, '*');}
-	   | '(' expression ')'			{debugBison(19); $$= $2;}
+expression: term				{debugBison(18); $$= $1;}
+	   | expression '+' expression		{debugBison(19); $$ = performBinaryOperation ($1, $3, '+');}
+	   | expression '-' expression		{debugBison(20); $$ = performBinaryOperation ($1, $3, '-');}
+	   | expression '/' expression		{debugBison(21); $$ = performBinaryOperation ($1, $3, '/');}
+	   | expression '*' expression		{debugBison(22); $$ = performBinaryOperation ($1, $3, '*');}
+	   | '(' expression ')'			{debugBison(23); $$= $2;}
 	   ;	   
 	      
-statement: expression statement | ; //added right recursion for expressions so we can have multiple expressions	   
+statement: expression statement  
+         | if statement  
+         | for statement  
+         | function statement  
+         | /* empty */  // Allow empty statements
+         ;
 
 %%
 
