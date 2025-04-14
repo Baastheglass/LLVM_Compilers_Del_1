@@ -2,7 +2,7 @@
 
 # Compiler
 CXX = clang++
-LLVM_CONFIG = llvm-config
+LLVM_CONFIG = /opt/homebrew/Cellar/llvm/20.1.2/bin/llvm-config
 LLC = llc  # LLVM static compiler
 OPT = opt  # LLVM optimizer
 

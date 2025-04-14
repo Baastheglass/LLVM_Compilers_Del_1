@@ -1,0 +1,10 @@
+// Test for loop functionality
+prints("Starting loop test");
+
+// For loop with 5 iterations
+for i = 5 {
+    prints("Loop iteration:");
+    printd(i);
+}
+
+prints("Loop finished");

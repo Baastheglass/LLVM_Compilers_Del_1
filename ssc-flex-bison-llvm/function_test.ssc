@@ -1,0 +1,25 @@
+prints("Starting function test");
+
+// Define a function
+function printMessage {
+    prints("This is printed from inside the function");
+    
+    x = 10.0;
+    y = 5.0;
+    z = x + y;
+    
+    prints("Function calculated:");
+    printd(z);
+}
+
+// Main code
+prints("Before function call");
+
+// Call the function
+printMessage();
+
+prints("After function call");
+
+// verify by manipulating variables
+a = 7.0;
+printd(a);

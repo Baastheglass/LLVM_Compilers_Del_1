@@ -17,6 +17,14 @@
 	#else
 		#define debugBison(a)
 	#endif
+
+    // helpers to track control flow context
+    void *currentIfBlock = nullptr;
+    bool processingThen = false;
+    bool processingElse = false;
+
+    // Add this to track for loop context
+    void *currentForBlock = nullptr;
 %}
 
 %union {
@@ -24,6 +32,8 @@
 	double double_literal;
 	char *string_literal;
 	int int_literal;
+	void *value;        // Use void* instead of llvm::Value*
+	void *block;        // Use void* for all block types
 }
 
 %token tok_printd
@@ -36,63 +46,138 @@
 %token <double_literal> tok_double_literal
 %token <string_literal> tok_string_literal
 %token <int_literal> tok_int_literal
+%token tok_eq tok_neq tok_leq tok_geq tok_lt tok_gt
 
-%type <double_literal> term expression
+%type <value> term expression
+%type <block> if_statement for_statement function_definition
 
+%left tok_eq tok_neq
+%left tok_lt tok_gt tok_leq tok_geq
 %left '+' '-' 
 %left '*' '/'
 %left '(' ')'
+%nonassoc THEN
+%nonassoc tok_else
 
 %start root
 
 %%
 
-root:   /* empty */                     {debugBison(1);}  
-      | prints root                     {debugBison(2);}
-      | printd root                      {debugBison(3);}
-      | assignment root                   {debugBison(4);}
-      | if root                           {debugBison(5);}
-	  | else root                           {debugBison(6);}
-      | for root                          {debugBison(7);}
-      | function root                      {debugBison(8);}
+root:   /* empty */                     {debugBison(1); initLLVM();}  
+      | statement root                  {debugBison(2);}
       ;
 
+statement:
+        prints              {debugBison(3);}
+      | printd              {debugBison(4);}
+      | assignment          {debugBison(5);}
+      | if_statement        {debugBison(6);}
+      | for_statement       {debugBison(7);}
+      | function_definition {debugBison(8);}
+      | function_call       {debugBison(9);}
+      ;
 
-prints:	tok_prints '(' tok_string_literal ')' ';'   {debugBison(9); print("%s\n", $3); } 
+prints:	tok_prints '(' tok_string_literal ')' ';'   {debugBison(10); printString($3); } 
 	;
 
-printd:	tok_printd '(' term ')' ';'		{debugBison(10); print("%lf\n", $3); }
+printd:	tok_printd '(' expression ')' ';'		{debugBison(11); printDouble($3); }
 	;
 
-if: tok_if '(' expression ')' '{' statement '}'		{debugBison(11); print("%s\n", "if($3) {$6}");}
+if_statement: 
+        tok_if '(' expression ')' {
+            // Save the entry block state
+            void *ifBlock = createIfElseBlock($3);
+            currentIfBlock = ifBlock;
+            processingThen = true;
+        } 
+        '{' statements '}' {
+            processingThen = false;
+            completeIfThen(currentIfBlock);
+        } 
+        tok_else {
+            processingElse = true;
+        } 
+        '{' statements '}' {
+            processingElse = false;
+            completeIfElse(currentIfBlock);
+            currentIfBlock = nullptr;
+            $$ = NULL;
+        }
+      | tok_if '(' expression ')' {
+            // For if without else
+            void *ifBlock = createIfBlock($3);
+            currentIfBlock = ifBlock;
+            processingThen = true;
+        } 
+        '{' statements '}' %prec THEN {
+            processingThen = false;
+            completeIfBlock(currentIfBlock);
+            currentIfBlock = nullptr;
+            $$ = NULL;
+        }
+      ;
 
-else: tok_else '{' statement '}'	{debugBison(12); print("%s\n", "else{$3}");}
+for_statement: 
+        tok_for tok_identifier '=' tok_int_literal '{' {
+            // Create the for loop and set insertion point to loop body
+            debugBison(14);
+            currentForBlock = createForLoop($2, $4);
+        } 
+        statements '}' {
+            // Complete the for loop body and set insertion point after the loop
+            debugBison(15);
+            completeForBody(currentForBlock);
+            currentForBlock = nullptr;
+            $$ = NULL;
+        }
+        ;
 
-for: tok_for tok_identifier '=' tok_int_literal '{' statement '}' 	{debugBison(13); print("%s\n", "for(int $2 = 0; $2 < $4; $2++){$6}");}
+function_definition: 
+        tok_function tok_identifier '{' {
+            // Create function and set builder insertion point to function body
+            debugBison(30);
+            void *funcBlock = createFunction($2);
+            $<block>$ = funcBlock;  // Save block for later
+        } 
+        statements '}' {
+            // Complete function and restore builder insertion point
+            debugBison(31);
+            completeFunction($<block>4);  // Use saved block
+        }
+      ;
 
-function: tok_function  '{' statement '}'	{debugBison(14); print("%s\n", "void function() {$3}");} //we dont like parameters
+function_call:
+        tok_identifier '(' ')' ';' {
+            debugBison(32);
+            callFunction($1);
+        }
+      ;
 
-term:	tok_identifier				{debugBison(15); $$ = getValueFromSymbolTable($1); } 
-	| tok_double_literal			{debugBison(16); $$ = $1; }
+term:	tok_identifier				{debugBison(17); $$ = getValueFromSymbolTable($1); } 
+	| tok_double_literal			{debugBison(18); $$ = createDoubleConstant($1); }
 	;
 
-assignment:  tok_identifier '=' expression ';'	{debugBison(17); setValueInSymbolTable($1, $3); } 
+assignment:  tok_identifier '=' expression ';'	{debugBison(19); setDouble($1, $3); } 
 	;
 
-expression: term				{debugBison(18); $$= $1;}
-	   | expression '+' expression		{debugBison(19); $$ = performBinaryOperation ($1, $3, '+');}
-	   | expression '-' expression		{debugBison(20); $$ = performBinaryOperation ($1, $3, '-');}
-	   | expression '/' expression		{debugBison(21); $$ = performBinaryOperation ($1, $3, '/');}
-	   | expression '*' expression		{debugBison(22); $$ = performBinaryOperation ($1, $3, '*');}
-	   | '(' expression ')'			{debugBison(23); $$= $2;}
+expression: term				{debugBison(20); $$= $1;}
+	   | expression '+' expression		{debugBison(21); $$ = performBinaryOperation($1, $3, '+');}
+	   | expression '-' expression		{debugBison(22); $$ = performBinaryOperation($1, $3, '-');}
+	   | expression '/' expression		{debugBison(23); $$ = performBinaryOperation($1, $3, '/');}
+	   | expression '*' expression		{debugBison(24); $$ = performBinaryOperation($1, $3, '*');}
+	   | '(' expression ')'			{debugBison(25); $$= $2;}
+	   | expression tok_eq expression	{debugBison(26); $$ = performComparison($1, $3, 1);}
+	   | expression tok_neq expression	{debugBison(27); $$ = performComparison($1, $3, 2);}
+	   | expression tok_leq expression	{debugBison(28); $$ = performComparison($1, $3, 3);}
+	   | expression tok_geq expression	{debugBison(29); $$ = performComparison($1, $3, 4);}
+	   | expression tok_lt expression	{debugBison(30); $$ = performComparison($1, $3, 5);}
+	   | expression tok_gt expression	{debugBison(31); $$ = performComparison($1, $3, 6);}
 	   ;	   
 	      
-statement: expression statement  
-         | if statement  
-         | for statement  
-         | function statement  
-         | /* empty */  // Allow empty statements
-         ;
+statements: 
+         statement statements
+       | /* empty */
+       ;
 
 %%
 
@@ -101,8 +186,15 @@ void yyerror(const char *err) {
 }
 
 int main(int argc, char** argv) {
+	// Initialize LLVM explicitly before parsing
+	initLLVM();
+	
 	if (argc > 1) {
 		FILE *fp = fopen(argv[1], "r");
+		if (!fp) {
+			fprintf(stderr, "Error: Cannot open file %s\n", argv[1]);
+			return EXIT_FAILURE;
+		}
 		yyin = fp; //read from file when its name is provided.
 	} 
 	if (yyin == NULL) { 
@@ -112,6 +204,14 @@ int main(int argc, char** argv) {
 	//yyparse will call internally yylex
 	//It will get a token and insert it into AST
 	int parserResult = yyparse();
+	if (parserResult != 0) {
+		fprintf(stderr, "Parsing failed\n");
+		return EXIT_FAILURE;
+	}
+	
+	// Add return instruction and print LLVM IR
+	addReturnInstr();
+	printLLVMIR();
 	
 	return EXIT_SUCCESS;
 }

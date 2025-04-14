@@ -1,0 +1,16 @@
+a = 5.0;
+b = 10.0;
+
+// Test if-else statement
+prints("Testing if-else:");
+if (a > b) {
+    prints("a is greater than b");
+} else {
+    prints("b is greater than a");
+}
+
+c = a + b;
+prints("The value of c =");
+printd(c);
+
+

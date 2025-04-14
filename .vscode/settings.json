@@ -1,0 +1,9 @@
+{
+  "makefile.configureOnOpen": true,
+  "files.associations": {
+    ".fantomasignore": "ignore",
+    "istream": "cpp",
+    "module.h": "c",
+    "*.inc": "c"
+  }
+}

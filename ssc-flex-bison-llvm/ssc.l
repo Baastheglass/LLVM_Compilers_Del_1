@@ -26,12 +26,25 @@
 "else"					{debugFlex(tok_else); return tok_else;}
 "for"					{debugFlex(tok_for); return tok_for;}
 "function" 				{debugFlex(tok_function); return tok_function;}
+"=="                    {debugFlex(tok_eq); return tok_eq;}
+"!="                    {debugFlex(tok_neq); return tok_neq;}
+"<="                    {debugFlex(tok_leq); return tok_leq;}
+">="                    {debugFlex(tok_geq); return tok_geq;}
+"<"                     {debugFlex(tok_lt); return tok_lt;}
+">"                     {debugFlex(tok_gt); return tok_gt;}
 [a-zA-Z][a-zA-Z0-9_]*			{debugFlex(tok_identifier); yylval.identifier=strdup(yytext); return tok_identifier;}
-[0-9]+(\.[0-9]+)?			{debugFlex(tok_double_literal); yylval.double_literal=atof(yytext); return tok_double_literal;}
-\"[^"]*\"				{debugFlex(tok_string_literal); yylval.string_literal=strdup(yytext); return tok_string_literal;}
+[0-9]+\.[0-9]+      { debugFlex(tok_double_literal); yylval.double_literal = atof(yytext); return tok_double_literal; }
+[0-9]+                  {debugFlex(tok_int_literal); yylval.int_literal=atoi(yytext); return tok_int_literal;}
+\"[^"]*\"				{
+                            debugFlex(tok_string_literal); 
+                            // Strip the quotes from the string
+                            yytext[yyleng-1] = '\0';
+                            yylval.string_literal=strdup(yytext+1); 
+                            return tok_string_literal;
+                        }
 \/\/.*					{;}
 [ \n\r\t]				{;}
-"+"|"-"|"*"|"\/"|"="|";"|"("|")"	{debugFlex(yytext[0]); return yytext[0];} 
+"+"|"-"|"*"|"\/"|"="|";"|"("|")"|"{"|"}"	{debugFlex(yytext[0]); return yytext[0];} 
 .					{debugFlex(-1); yyerror("this is a illegal lexeme"); exit(EXIT_FAILURE);}
 %%
 
